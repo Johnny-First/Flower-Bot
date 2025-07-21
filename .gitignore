@@ -3,3 +3,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
+users.db
+*.pyc
+__pycache__/
+.idea/
+.vscode/
+*.swp
+*.swo
+*.log
+*.tmp

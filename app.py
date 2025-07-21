@@ -4,7 +4,8 @@ from .config.settings import settings
 from .handlers import ( 
     FlowerHandlers,
     BaseHandlers,
-    # PaymentHandlers,
+    AdminHandlers,
+    PaymentHandlers,
     AI_Handlers
 )
 
@@ -14,7 +15,8 @@ async def main():
 
     FlowerHandlers(dp)
     BaseHandlers(dp)
-    # PaymentHandlers(dp)
+    AdminHandlers(dp)
+    PaymentHandlers(dp)
     AI_Handlers(dp)
     
     await dp.start_polling(bot)

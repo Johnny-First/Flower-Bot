@@ -1,14 +1,19 @@
 from aiogram import types
 
 def get_base_keyboard():
-    return types.ReplyKeyboardMarkup(
-        keyboard=[
-            # [types.KeyboardButton(text="Наш сайт")],
-            # [types.KeyboardButton(text="О магазине")],
-            [types.KeyboardButton(text="Заказать цветы")]
-        ],
-        resize_keyboard=True
+    return types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [types.InlineKeyboardButton(text="Заказать цветы", callback_data="catalog")]
+        ]
     )
+
+def get_pay_keyboard():
+    return types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [types.InlineKeyboardButton(text="Я оплатил", callback_data="paid")],
+            [types.InlineKeyboardButton(text="Назад", callback_data="back")]
+            ]
+        )
 
 def get_flowers_keyboard():
     return types.InlineKeyboardMarkup(

@@ -14,4 +14,4 @@ class PaymentService():
                 "&account=4100118022895931")
         return link
 ps = PaymentService()
-print(ps.create_paylink())
+print(ps.create_paylink()) 

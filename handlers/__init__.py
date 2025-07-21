@@ -4,9 +4,18 @@ from aiogram.fsm.context import FSMContext
 
 from .base import BaseHandlers
 from .flowers import FlowerHandlers
-# from .payments import PaymentHandlers
 from .ai import AI_Handlers
+from .admin import AdminHandlers
+from .payments import PaymentHandlers
 
-__all__ = ['Command', 'F', 'types', 'FSMContext', 
-           'BaseHandlers', 
-           'FlowerHandlers', 'PaymentHandlers', 'AIHandlers']
+__all__ = [
+    "Command",
+    "F",
+    "types",
+    "FSMContext",
+    "BaseHandlers",
+    "FlowerHandlers",
+    "AI_Handlers",
+    "AdminHandlers",
+    "PaymentHandlers",
+]

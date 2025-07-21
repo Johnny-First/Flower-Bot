@@ -10,7 +10,7 @@ class FlowerHandlers:
         try:
             await callback.message.edit_media(
                 types.InputMediaPhoto(
-                    media=FLOWERS_PICTURES[flower_type],
+                    media=FLOWERS_PICTURES[flower_type], 
                     caption=FLOWERS_CAPTIONS.get(flower_type, "Красивый цветок!")
                 ),
                 reply_markup=get_order_keyboard()

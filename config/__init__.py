@@ -1,5 +1,6 @@
 from .settings import settings  # Основные настройки
-from .keyboards import (       # Клавиатуры
+from .keyboards import ( 
+    get_pay_keyboard,      # Клавиатуры
     get_base_keyboard,
     get_flowers_keyboard,
     get_order_keyboard,
@@ -7,8 +8,11 @@ from .keyboards import (       # Клавиатуры
 from .media import FLOWERS_CAPTIONS, FLOWERS_PICTURES    
 
 __all__ = [
+    'get_pay_keyboard',
+    'get_base_keyboard',
     'settings',
     'get_order_keyboard',
     'get_flowers_keyboard',
-    'FLOWERS'
+    'FLOWERS_CAPTION',
+    'FLOWERS_PICTURES'
 ]
