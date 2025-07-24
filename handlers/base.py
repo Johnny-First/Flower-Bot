@@ -12,9 +12,7 @@ class BaseHandlers:
         dp.callback_query.register(self.order, F.data == "catalog")
         dp.callback_query.register(self.watch_others, F.data == "back")
 
-    # async def about_cmd(self, message: types.Message):
-    #     await message.answer("Мы - цветочный магазин с 2010 года!")
-    
+
     async def start_cmd(self, message: types.Message):
         # Сохраняем пользователя в базу данных
         import sqlite3

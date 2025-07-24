@@ -15,8 +15,8 @@ async def main():
 
     FlowerHandlers(dp)
     BaseHandlers(dp)
-    AdminHandlers(dp)
     PaymentHandlers(dp)
+    AdminHandlers(dp)
     AI_Handlers(dp)
     
     await dp.start_polling(bot)

@@ -1,9 +1,18 @@
 from aiogram import types
+import sqlite3
 
 def get_base_keyboard():
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
             [types.InlineKeyboardButton(text="Заказать цветы", callback_data="catalog")]
+        ]
+    )
+
+def get_admin_keyboard():
+    return types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [types.InlineKeyboardButton(text="Рассылка", callback_data="admin_mailing"),
+             types.InlineKeyboardButton(text="Расширение каталога", callback_data="admin_extend_catalog")]
         ]
     )
 
@@ -16,6 +25,9 @@ def get_pay_keyboard():
         )
 
 def get_flowers_keyboard():
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute('''FROM flowers ''')
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
             [
