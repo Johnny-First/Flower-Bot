@@ -1,70 +1,89 @@
-import sqlite3
+import aiosqlite
 
 DB_PATH = 'users.db'
 
-def create_messages_table():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            role TEXT NOT NULL,
-            content TEXT NOT NULL
-        )
-    ''')
-    conn.commit()
-    conn.close()
+async def create_all_tables():
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                username TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                cart_price INTEGER DEFAULT 0,
+                cart_items TEXT DEFAULT '[]'
+            )
+        ''')
+        await conn.execute('''
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL
+            )
+        ''')
+        await conn.execute('''
+            CREATE TABLE IF NOT EXISTS flowers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                caption TEXT,
+                photo_id TEXT NOT NULL,
+                category_id INTEGER NOT NULL
+            )
+        ''')
+        await conn.execute('''
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                in_stock INTEGER
+            )
+        ''')
+        await conn.commit()
 
-def get_history(user_id, limit=10):
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    c.execute(
-        "SELECT role, content FROM messages WHERE user_id=? ORDER BY id DESC LIMIT ?",
-        (user_id, limit)
-    )
-    rows = c.fetchall()
-    conn.close()
-    # Переворачиваем, чтобы сообщения шли в хронологическом порядке (от старых к новым)
+async def get_history(user_id, limit=10):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        async with conn.execute(
+            "SELECT role, content FROM messages WHERE user_id=? ORDER BY id DESC LIMIT ?",
+            (user_id, limit)
+        ) as cursor:
+            rows = await cursor.fetchall()
     return [{"role": role, "content": content} for role, content in reversed(rows)]
 
-def add_message(user_id: int, role: str, message: str):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO messages (user_id, role, content) VALUES (?, ?, ?)
-    ''', (user_id, role, message))
-    conn.commit()
-    conn.close()
-
-def create_flowers_table():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS flowers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            caption TEXT,
-            photo_id TEXT NOT NULL,
-            heritage TEXT NOT NULL,
+async def add_message(user_id: int, role: str, message: str):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute(
+            'INSERT INTO messages (user_id, role, content) VALUES (?, ?, ?)',
+            (user_id, role, message)
         )
-    ''')
-    conn.commit()
-    conn.close()
+        await conn.commit()
 
-def add_flower(name: str, caption: str, photo_id: str):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO flowers (name, caption, photo_id) VALUES (?, ?, ?)
-    ''', (name, caption, photo_id))
-    conn.commit()
-    conn.close()
+async def add_user(user_id: int, username: str, first_name: str, last_name: str):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute(
+            'INSERT OR IGNORE INTO users (user_id, username, first_name, last_name) VALUES (?, ?, ?, ?)',
+            (user_id, username, first_name, last_name)
+        )
+        await conn.commit()
 
-def get_all_flowers():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, name, caption, photo_id FROM flowers')
-    flowers = cursor.fetchall()
-    conn.close()
+async def add_flower(name: str, caption: str, photo_id: str, category: str):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute(
+            'INSERT INTO flowers (name, caption, photo_id, category) VALUES (?, ?, ?, ?)',
+            (name, caption, photo_id, category)
+        )
+        await conn.commit()
+
+async def get_media_flower(flower_id):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        async with conn.execute('SELECT name, caption, photo_id FROM flowers WHERE id = ?', 
+                                (flower_id)) as cursor:
+            flowers = await cursor.fetchone()
     return flowers
+
+async def get_flower_category(flower_id):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        async with conn.execute('SELECT category_id FROM flowers WHERE id = ?', 
+                                (flower_id)) as cursor:
+            category = await cursor.fetchone()
+    return category[0]

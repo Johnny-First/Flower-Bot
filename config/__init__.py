@@ -4,7 +4,8 @@ from .keyboards import (
     get_base_keyboard,
     get_flowers_keyboard,
     get_order_keyboard,
-    get_admin_keyboard
+    get_admin_keyboard,
+    get_categories_keyboard
 )
 from .media import FLOWERS_CAPTIONS, FLOWERS_PICTURES    
 
@@ -15,6 +16,7 @@ __all__ = [
     'settings',
     'get_order_keyboard',
     'get_flowers_keyboard',
-    'FLOWERS_CAPTION',
-    'FLOWERS_PICTURES'
+    'FLOWERS_CAPTIONS',
+    'FLOWERS_PICTURES',
+    'get_categories_keyboard'
 ]

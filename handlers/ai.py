@@ -1,11 +1,10 @@
 from aiogram import Dispatcher, types
 from ..services.ai import AI_GPT
 from ..config import get_base_keyboard
-from ..database.models import add_message, get_history, create_messages_table
+from ..database.models import add_message, get_history
 
-class AI_Handlers:
+class AI_Handlers:  
     def __init__(self, dp: Dispatcher):
-        create_messages_table()  # Создаём таблицу сообщений при запуске
         self.gpt = AI_GPT()
         dp.message.register(
             self.fallback_handler,
@@ -17,15 +16,15 @@ class AI_Handlers:
         thinking_msg = await message.answer("ChatGPT печатает...")
 
         # Сохраняем сообщение пользователя в историю
-        add_message(user_id, "user", message.text)
+        await add_message(user_id, "user", message.text)
         # Получаем последние 10 сообщений для контекста
-        history = get_history(user_id, limit=10)
+        history = await get_history(user_id, limit=10)
 
         try:
             # Передаём историю в ask_gpt (ожидается, что ask_gpt принимает список сообщений)
             response = self.gpt.ask_gpt(history)
             # Сохраняем ответ ассистента в историю
-            add_message(user_id, "assistant", response)
+            await add_message(user_id, "assistant", response)
 
             await thinking_msg.delete()
             await message.answer(response, reply_markup=get_base_keyboard())

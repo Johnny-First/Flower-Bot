@@ -1,11 +1,11 @@
 import re
 from aiogram import F, types, Dispatcher
 from aiogram.filters import Command  
-from ..config import get_base_keyboard, get_flowers_keyboard
-import sqlite3
+from ..config import get_base_keyboard, get_flowers_keyboard, get_categories_keyboard
+import aiosqlite
 import os
 from dotenv import load_dotenv
-from ..database.models import create_flowers_table, add_flower
+from ..database.models import add_flower
 from ..config import get_admin_keyboard
 
 def is_waiting_broadcast(handler):
@@ -19,15 +19,13 @@ class AdminHandlers:
         self.admin_ids = os.getenv("ADMIN_IDS", "")
         self.admin_ids = [int(x) for x in self.admin_ids.split(",") if x.strip()]
         self._waiting_broadcast = None
-        create_flowers_table()
         dp.message.register(self.admin_panel, Command("admin"))
         dp.message.register(
             self.broadcast_message,
             is_waiting_broadcast(self),
         )
         dp.callback_query.register(self.admin_action_callback, F.data.startswith("admin_"))
-        # Регистрируем обработчик для быстрого добавления цветка
-        dp.message.register(self.quick_add_flower, F.photo)
+        
 
     async def admin_panel(self, message: types.Message):        
         if message.from_user.id not in self.admin_ids:
@@ -55,11 +53,9 @@ class AdminHandlers:
 
     async def broadcast_message(self, message: types.Message):
         broadcast_text = message.text
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute("SELECT user_id FROM users")
-        user_ids = [row[0] for row in cursor.fetchall()]
-        conn.close()
+        async with aiosqlite.connect('users.db') as conn:
+            async with conn.execute("SELECT user_id FROM users") as cursor:
+                user_ids = [row[0] async for row in cursor]
         sent = 0
         for user_id in user_ids:
             try:
@@ -70,16 +66,4 @@ class AdminHandlers:
         await message.answer(f"Рассылка завершена. Сообщение отправлено {sent} пользователям.", reply_markup=get_admin_keyboard())
         self._waiting_broadcast = None
     
-    async def quick_add_flower(self, message: types.Message):
-        # Только для админов
-        if message.from_user.id not in self.admin_ids:
-            return
-        if not message.caption:
-            await message.answer("Пожалуйста, добавьте подпись к фото: первая строка — название, остальные — описание.")
-            return
-        lines = message.caption.split('\n', 1)
-        name = lines[0].strip()
-        caption = lines[1].strip() if len(lines) > 1 else ""
-        photo_id = message.photo[-1].file_id
-        add_flower(name, caption, photo_id)
-        await message.answer(f"Цветок '{name}' добавлен в каталог!")
+    
