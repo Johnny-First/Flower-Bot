@@ -1,29 +1,35 @@
-from aiogram import Dispatcher, types
+from aiogram import Dispatcher, types, F
+from aiogram.filters import Command, StateFilter
 from ..services.ai import AI_GPT
 from ..config import get_base_keyboard
 from ..database.models import add_message, get_history
+from .admin import AdminStates
 
 class AI_Handlers:  
     def __init__(self, dp: Dispatcher):
         self.gpt = AI_GPT()
         dp.message.register(
             self.fallback_handler,
-            flags={"run_last": True}
+            F.text,
+            ~Command(commands=["admin", "start", "help", "catalog", "order"]),
+            ~StateFilter(AdminStates.waiting_category_name),
+            ~StateFilter(AdminStates.waiting_flower_name),
+            ~StateFilter(AdminStates.waiting_flower_caption),
+            ~StateFilter(AdminStates.waiting_flower_photo),
+            ~StateFilter(AdminStates.waiting_flower_category),
         )
 
     async def fallback_handler(self, message: types.Message):
+        if message.text and message.text.startswith('/'):
+            return
+            
         user_id = message.from_user.id
         thinking_msg = await message.answer("ChatGPT печатает...")
 
-        # Сохраняем сообщение пользователя в историю
-        await add_message(user_id, "user", message.text)
-        # Получаем последние 10 сообщений для контекста
-        history = await get_history(user_id, limit=10)
-
         try:
-            # Передаём историю в ask_gpt (ожидается, что ask_gpt принимает список сообщений)
+            await add_message(user_id, "user", message.text)
+            history = await get_history(user_id, limit=10)
             response = self.gpt.ask_gpt(history)
-            # Сохраняем ответ ассистента в историю
             await add_message(user_id, "assistant", response)
 
             await thinking_msg.delete()

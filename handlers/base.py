@@ -14,7 +14,7 @@ class BaseHandlers:
 
 
     async def start_cmd(self, message: types.Message):
-        from ..database.models import add_user
+        from ..database import add_user
         await add_user(
             user_id=message.from_user.id,
             username=message.from_user.username,

@@ -1,5 +1,18 @@
 import aiosqlite
 from aiogram import types
+from typing import Dict
+
+def get_my_keyboard(role: str, data: Dict[str, str]):
+    buttons = []
+    row = []
+    for name, callback in data:
+        row.append(types.InlineKeyboardButton(text=name, callback_data=f"{role}_{callback}"))
+        if len(row) == 2:
+            buttons.append(row)
+            row = [] 
+    if row:
+        buttons.append(row)
+    return types.InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_base_keyboard():
     return types.InlineKeyboardMarkup(
@@ -12,7 +25,7 @@ def get_admin_keyboard():
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
             [types.InlineKeyboardButton(text="Рассылка", callback_data="admin_mailing"),
-             types.InlineKeyboardButton(text="Расширение каталога", callback_data="admin_extend_catalog")]
+             types.InlineKeyboardButton(text="Взаимодействие с каталогом", callback_data="admin_interact_catalog")]
         ]
     )
 
@@ -23,6 +36,20 @@ def get_pay_keyboard():
             [types.InlineKeyboardButton(text="Назад", callback_data="back")]
         ]
     )
+async def admin_get_categories_keyboard():
+    async with aiosqlite.connect('users.db') as conn:
+        async with conn.execute('SELECT name, id FROM categories') as cursor:
+            categories = await cursor.fetchall()
+    buttons = []
+    row = []
+    for category_id in categories:
+        row.append(types.InlineKeyboardButton(text=category_id[0], callback_data=f"category_{category_id[1]}"))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    return types.InlineKeyboardMarkup(inline_keyboard=buttons)
 
 async def get_categories_keyboard():
     async with aiosqlite.connect('users.db') as conn:

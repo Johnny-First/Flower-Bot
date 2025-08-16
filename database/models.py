@@ -1,13 +1,13 @@
 import aiosqlite
 
 DB_PATH = 'users.db'
-
+ 
 async def create_all_tables():
     async with aiosqlite.connect(DB_PATH) as conn:
         await conn.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL UNIQUE,
                 username TEXT,
                 first_name TEXT,
                 last_name TEXT,
@@ -66,13 +66,41 @@ async def add_user(user_id: int, username: str, first_name: str, last_name: str)
         )
         await conn.commit()
 
-async def add_flower(name: str, caption: str, photo_id: str, category: str):
+async def add_category(name: str, in_stock: int = 1):
+    try:
+        async with aiosqlite.connect(DB_PATH) as conn:
+            await conn.execute(
+                'INSERT INTO categories (name, in_stock) VALUES (?, ?)',
+                (name, in_stock)
+            )
+            await conn.commit()
+    except Exception as e:
+        print(f"Ошибка в add_category: {e}")  
+
+async def add_flower(name: str, caption: str, photo_id: str, category_id: int):
     async with aiosqlite.connect(DB_PATH) as conn:
         await conn.execute(
-            'INSERT INTO flowers (name, caption, photo_id, category) VALUES (?, ?, ?, ?)',
-            (name, caption, photo_id, category)
+            'INSERT INTO flowers (name, caption, photo_id, category_id) VALUES (?, ?, ?, ?)',
+            (name, caption, photo_id, category_id)
         )
         await conn.commit()
+
+async def delete_category(category_id: int):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute(
+            'DELETE FROM categories WHERE id = ?',
+            (category_id,)
+        )
+        await conn.commit()
+
+async def delete_flower(flower_id: int):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute(
+            'DELETE FROM flowers WHERE id = ?',
+            (flower_id,)
+        )
+        await conn.commit()
+         
 
 async def get_media_flower(flower_id):
     async with aiosqlite.connect(DB_PATH) as conn:
