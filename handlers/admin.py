@@ -120,7 +120,7 @@ class AdminHandlers:
             return
         
         if data == "mailing":
-            await callback.message.answer("Введите текст для рассылки:", reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[[types.InlineKeyboardButton(text="Назад", callback_data="admin_interact_catalog")]]))
+            await callback.message.answer("📢 Отправьте текст для рассылки.\n\n💡 Вы также можете отправить фотографию с подписью - она будет разослана всем пользователям.", reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[[types.InlineKeyboardButton(text="Назад", callback_data="admin_interact_catalog")]]))
             await state.set_state(AdminStates.waiting_broadcast)
             await callback.answer()
             
@@ -451,26 +451,74 @@ class AdminHandlers:
         await state.clear()
 
     async def broadcast_message(self, message: types.Message, state: FSMContext):
-        broadcast_text = message.text
+        """Обработчик рассылки сообщений и фотографий"""
+        from ..database.models import UserManager
         
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute("SELECT user_id FROM users")
-        user_ids = [row[0] for row in cursor.fetchall()]
-        conn.close()
-        sent = 0
-        for user_id in user_ids:
-            try:
-                await message.bot.send_message(user_id, broadcast_text)
-                sent += 1
-            except Exception:
-                continue
-        
-        await message.answer(
-            f"Рассылка завершена. Сообщение отправлено {sent} пользователям.",
-            reply_markup=get_admin_keyboard()
-        )
-        await state.clear()
+        try:
+            # Получаем всех пользователей
+            conn = sqlite3.connect('users.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id FROM users")
+            user_ids = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            
+            sent = 0
+            failed = 0
+            
+            if message.photo:
+                # Рассылка фотографии с подписью
+                photo_file_id = message.photo[-1].file_id
+                caption = message.caption or ""
+                
+                for user_id in user_ids:
+                    try:
+                        await message.bot.send_photo(
+                            chat_id=user_id,
+                            photo=photo_file_id,
+                            caption=caption
+                        )
+                        sent += 1
+                    except Exception as e:
+                        print(f"Ошибка отправки фото пользователю {user_id}: {e}")
+                        failed += 1
+                        continue
+                        
+                result_message = f"📸 Рассылка фотографии завершена!\n✅ Отправлено: {sent} пользователям"
+                if failed > 0:
+                    result_message += f"\n❌ Ошибки: {failed} пользователей"
+                    
+            else:
+                # Рассылка только текста
+                broadcast_text = message.text
+                
+                for user_id in user_ids:
+                    try:
+                        await message.bot.send_message(
+                            chat_id=user_id,
+                            text=broadcast_text
+                        )
+                        sent += 1
+                    except Exception as e:
+                        print(f"Ошибка отправки сообщения пользователю {user_id}: {e}")
+                        failed += 1
+                        continue
+                        
+                result_message = f"📢 Рассылка текста завершена!\n✅ Отправлено: {sent} пользователям"
+                if failed > 0:
+                    result_message += f"\n❌ Ошибки: {failed} пользователей"
+            
+            await message.answer(
+                result_message,
+                reply_markup=get_admin_keyboard()
+            )
+            
+        except Exception as e:
+            await message.answer(
+                f"❌ Ошибка при рассылке: {str(e)}",
+                reply_markup=get_admin_keyboard()
+            )
+        finally:
+            await state.clear()
 
     async def show_orders(self, callback: types.CallbackQuery):
         """Показать все незавершенные заказы в админ-панели"""
