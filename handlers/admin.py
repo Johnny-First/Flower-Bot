@@ -13,10 +13,14 @@ from ..config import get_admin_keyboard
 class AdminStates(StatesGroup):
     waiting_broadcast = State() 
     waiting_new_category_name = State()
-    waiting_new_flower = State()
+    waiting_new_category_photo = State()
+    waiting_flower_name = State()
+    waiting_flower_price = State()
+    waiting_flower_caption = State()
+    waiting_flower_photo = State()
+    waiting_flower_category = State()
     waiting_category_delete = State()
     waiting_flower_delete = State()
-    waiting_flower_category = State()
     waiting_to_stop = State()
 
 class AdminHandlers:
@@ -25,7 +29,7 @@ class AdminHandlers:
         self.admin_ids = os.getenv("ADMIN_IDS", "")
         self.admin_ids = [int(x) for x in self.admin_ids.split(",") if x.strip()]
 
-        dp.message.register(self.admin_panel, Command("admin"))        
+        dp.message.register(self.admin_panel, Command("admin"))
         dp.callback_query.register(self.admin_panel_callback, F.data == "admin")        
 
         dp.callback_query.register(
@@ -54,8 +58,28 @@ class AdminHandlers:
             StateFilter(AdminStates.waiting_new_category_name)
         )
         dp.message.register(
-            self.process_new_flower,
-            StateFilter(AdminStates.waiting_new_flower)
+            self.process_new_category_photo,
+            StateFilter(AdminStates.waiting_new_category_photo)
+        )
+        dp.message.register(
+            self.process_flower_name,
+            StateFilter(AdminStates.waiting_flower_name)
+        )
+        dp.message.register(
+            self.process_flower_price,
+            StateFilter(AdminStates.waiting_flower_price)
+        )
+        dp.message.register(
+            self.process_flower_caption,
+            StateFilter(AdminStates.waiting_flower_caption)
+        )
+        dp.message.register(
+            self.process_flower_photo,
+            StateFilter(AdminStates.waiting_flower_photo)
+        )
+        dp.message.register(
+            self.broadcast_message,
+            StateFilter(AdminStates.waiting_broadcast)
         )
         dp.callback_query.register(
             self.flower_category,
@@ -65,7 +89,6 @@ class AdminHandlers:
             self.complete_order,
             F.data.startswith("complete_order_")
         )
-        
         
 
     async def admin_panel(self, message: types.Message, state: FSMContext):
@@ -117,9 +140,14 @@ class AdminHandlers:
             await callback.answer()
             
         elif data == "category_add":
-            names = await CategoryManager.get_all_categories()
-            names = "\n".join([f"Наименование: {name}, статус: {"в наличии" if in_stock == 1 else "нет в наличии"}, id: {id}" for name, id, in_stock in names])
-            await callback.message.edit_text(f"Введите имя новой категории, если её пока нет в наличии добавьте 0 через пробел, например: Розы 0, если их нет или Розы, если они есть\n\nДоступные категории:\n\n{names}", reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[[types.InlineKeyboardButton(text="Назад", callback_data="admin_interact_catalog")]]))
+            await callback.message.edit_text(
+                "📝 Введите название новой категории:",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[[
+                        types.InlineKeyboardButton(text="Назад", callback_data="admin_interact_catalog")
+                    ]]
+                )
+            )
             await state.set_state(AdminStates.waiting_new_category_name)
             await callback.answer()
         
@@ -152,6 +180,17 @@ class AdminHandlers:
         elif data == "all_orders":
             await self.show_all_orders(callback)
             await callback.answer()
+        elif callback.data == "admin_flower_add":
+            await callback.message.edit_text(
+                "🌹 Добавление нового цветка\n\n📝 Введите название цветка:",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [types.InlineKeyboardButton(text="Отмена", callback_data="admin_interact_catalog")]
+                    ]
+                )
+            )
+            await state.set_state(AdminStates.waiting_flower_name)
+            await callback.answer()
         else:
             await callback.answer("Неизвестное действие", show_alert=True)
 
@@ -160,15 +199,26 @@ class AdminHandlers:
         action = data.get("action")    
         category_id = int(callback.data)
         await state.update_data(category_id=category_id)
+        
         if action == "add":
-            await callback.message.edit_text("Введите карточку товара по образцу(прикрепите фото): Число_слов_в_наименовании Наименование Цена Подпись")
-            await state.set_state(AdminStates.waiting_new_flower)
-        if action == "remove":
+            # Сохраняем выбранную категорию и запрашиваем название цветка
+            await state.update_data(flower_category_id=category_id)
+            await state.set_state(AdminStates.waiting_flower_name)
+            await callback.message.edit_text(
+                "🌹 Добавление нового цветка\n\n📝 Введите название цветка:",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [types.InlineKeyboardButton(text="Отмена", callback_data="admin_interact_catalog")]
+                    ]
+                )
+            )
+        elif action == "remove":
             await callback.message.edit_text("Выберите цветок для удаления:", reply_markup=await admin_get_flowers_keyboard(category_id=category_id))
             await state.set_state(AdminStates.waiting_flower_delete)
-        if action == "stop":
+        elif action == "stop":
             await callback.message.edit_text(text="Какой товар запускаем/стопим?", reply_markup=await admin_get_flowers_keyboard(category_id=category_id))
             await state.set_state(AdminStates.waiting_to_stop)
+        
         await callback.answer()
 
     async def complete_order(self, callback: types.CallbackQuery):
@@ -213,28 +263,172 @@ class AdminHandlers:
     async def process_new_category(self, message: types.Message, state: FSMContext):
         input_text = message.text.strip()
         
-        if input_text.endswith(' 0'):
-            category_name = input_text[:-2].strip()
-            stock_value = 0
-        elif input_text.endswith(' 1'):
-            category_name = input_text[:-2].strip()
-            stock_value = 1
-        else:
-            category_name = input_text
-            stock_value = 1
+        # Простая валидация названия
+        if len(input_text) < 2:
+            await message.answer("Название категории слишком короткое. Попробуйте еще раз.")
+            return
         
         try:
-            await CategoryManager.add_category(category_name, stock_value)
-            status = "в наличии" if stock_value == 1 else "нет в наличии"
+            # Сохраняем название категории в state
+            await state.update_data(category_name=input_text)
+            
+            # Запрашиваем фотографию категории
+            await state.set_state(AdminStates.waiting_new_category_photo)
             await message.answer(
-                f"Категория '{category_name}' добавлена/изменена! Статус: {status}",
+                "📸 Теперь отправьте фотографию для категории:",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [types.InlineKeyboardButton(text="Отмена", callback_data="admin_interact_catalog")]
+                    ]
+                )
+            )
+            
+        except Exception as e:
+            await message.answer(f"Ошибка при обработке названия: {e}")
+            await state.clear()
+    
+
+    async def process_new_category_photo(self, message: types.Message, state: FSMContext):
+        if not message.photo:
+            await message.answer("Пожалуйста, отправьте фотографию категории.")
+            return
+
+        try:
+            photo_file_id = message.photo[-1].file_id
+            await state.update_data(category_photo_file_id=photo_file_id)
+
+            # Получаем данные из state с await
+            data = await state.get_data()
+            category_name = data["category_name"]
+            category_photo_file_id = data["category_photo_file_id"]
+
+            await CategoryManager.add_category(category_name, category_photo_file_id)
+            await message.answer(
+                f"Категория '{category_name}' успешно добавлена!",
                 reply_markup=get_admin_keyboard()
             )
+            await state.clear()
+
         except Exception as e:
             await message.answer(f"Ошибка при добавлении категории: {e}")
+            await state.clear()
+
+    async def process_flower_name(self, message: types.Message, state: FSMContext):
+        """Обработчик ввода названия цветка"""
+        flower_name = message.text.strip()
         
-        await state.clear()
-    
+        if len(flower_name) < 2:
+            await message.answer("Название цветка слишком короткое. Попробуйте еще раз.")
+            return
+        
+        try:
+            # Сохраняем название цветка в state
+            await state.update_data(flower_name=flower_name)
+            
+            # Запрашиваем цену
+            await state.set_state(AdminStates.waiting_flower_price)
+            await message.answer(
+                "💰 Теперь введите цену цветка (только число):",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [types.InlineKeyboardButton(text="Отмена", callback_data="admin_interact_catalog")]
+                    ]
+                )
+            )
+            
+        except Exception as e:
+            await message.answer(f"Ошибка при обработке названия: {e}")
+            await state.clear()
+
+    async def process_flower_price(self, message: types.Message, state: FSMContext):
+        """Обработчик ввода цены цветка"""
+        try:
+            price = float(message.text.strip())
+            if price <= 0:
+                await message.answer("Цена должна быть положительным числом. Попробуйте еще раз.")
+                return
+            
+            # Сохраняем цену в state
+            await state.update_data(flower_price=price)
+            
+            # Запрашиваем описание
+            await state.set_state(AdminStates.waiting_flower_caption)
+            await message.answer(
+                "📝 Теперь введите описание цветка:",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [types.InlineKeyboardButton(text="Отмена", callback_data="admin_interact_catalog")]
+                    ]
+                )
+            )
+            
+        except ValueError:
+            await message.answer("Пожалуйста, введите только число для цены.")
+        except Exception as e:
+            await message.answer(f"Ошибка при обработке цены: {e}")
+            await state.clear()
+
+    async def process_flower_caption(self, message: types.Message, state: FSMContext):
+        """Обработчик ввода описания цветка"""
+        caption = message.text.strip()
+        
+
+        try:
+            # Сохраняем описание в state
+            await state.update_data(flower_caption=caption)
+            
+            # Запрашиваем фотографию цветка
+            await state.set_state(AdminStates.waiting_flower_photo)
+            await message.answer(
+                "📸 Теперь отправьте фотографию цветка:",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [types.InlineKeyboardButton(text="Отмена", callback_data="admin_interact_catalog")]
+                    ]
+                )
+            )
+            
+        except Exception as e:
+            await message.answer(f"Ошибка при обработке описания: {e}")
+            await state.clear()
+
+    async def process_flower_photo(self, message: types.Message, state: FSMContext):
+        """Обработчик фотографии цветка"""
+        if not message.photo:
+            await message.answer("Пожалуйста, отправьте фотографию цветка.")
+            return
+
+        try:
+            photo_file_id = message.photo[-1].file_id
+            
+            data = await state.get_data()
+            flower_name = data["flower_name"]
+            flower_price = data["flower_price"]
+            flower_caption = data["flower_caption"]
+            flower_category_id = data["flower_category_id"]
+            
+            await FlowerManager.add_flower(
+                name=flower_name,
+                price=str(flower_price),
+                caption=flower_caption,
+                photo_id=photo_file_id,
+                category_id=flower_category_id
+            )
+            
+            await message.answer(
+                f"✅ Цветок '{flower_name}' успешно добавлен!\n\n"
+                f"🌹 Название: {flower_name}\n"
+                f"💰 Цена: {flower_price}₽\n"
+                f"📝 Описание: {flower_caption}\n"
+                f"📂 Категория ID: {flower_category_id}",
+                reply_markup=get_admin_keyboard()
+            )
+            await state.clear()
+            
+        except Exception as e:
+            await message.answer(f"Ошибка при добавлении цветка: {e}")
+            await state.clear()
+
 
     async def remove_category(self, callback: types.CallbackQuery, state: FSMContext):
         cat_id = int(callback.data)
@@ -254,48 +448,6 @@ class AdminHandlers:
         await callback.message.edit_text("Успешно! Что-то еще?", reply_markup=get_admin_keyboard())
         
         await callback.answer()
-        await state.clear()
-
-    async def process_new_flower(self, message: types.Message, state: FSMContext):
-        if not message.caption:
-            await message.answer("Чего-то не хватает! Нужен формат: 'Число Наименование Цена Описание' + Фото!")
-            return
-        try:
-            
-            parts = message.caption.split()
-
-            num_words = int(parts[0])
-
-            name = " ".join(parts[1:1+num_words])
-
-            price = float(parts[1+num_words])
-
-            description = " ".join(parts[2+num_words:])
-
-            file_id = None
-            if message.photo:
-                file_id = message.photo[-1].file_id
-
-            data = await state.get_data()
-            category_id = data.get('category_id')
-
-            if not category_id:
-                await message.answer("Ошибка: не найдена категория")
-                return
-
-            await FlowerManager.add_flower(name, price, description, file_id, category_id)
-            await message.answer(
-            f"Цветок добавлен!\nНазвание: {name}\nЦена: {price}\nОписание: {description}",
-            reply_markup=get_admin_keyboard()
-        )
-        except (ValueError, IndexError) as e:
-            await message.answer(
-                "Ошибка формата! Используйте: 'Число Наименование Цена Описание'\n"
-                "Пример: '2 Роза красная 500 Красивая красная роза'"
-            )
-        except Exception as e:
-                await message.answer(f"Ошибка при добавлении: {e}")
-        await state.set_data({})
         await state.clear()
 
     async def broadcast_message(self, message: types.Message, state: FSMContext):
@@ -325,8 +477,6 @@ class AdminHandlers:
         try:
             from ..database.models import CheckoutManager
             import json
-            
-            # Получаем только незавершенные заказы
             all_orders = await CheckoutManager.get_all_orders()
             orders = [order for order in all_orders if order[10] != 'completed']  # order[10] - это status
             

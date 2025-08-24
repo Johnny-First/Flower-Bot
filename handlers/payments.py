@@ -284,7 +284,7 @@ class PaymentHandlers:
             )
         )
         await callback.answer()
-
+    
     async def quantity_input_handler(self, message: types.Message, state: FSMContext):
         """Обработчик ввода количества"""
         try:

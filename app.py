@@ -15,10 +15,9 @@ async def main():
     dp = Dispatcher()
     
     await create_all_tables()
-    
+    BaseHandlers(dp)
     AdminHandlers(dp)
     FlowerHandlers(dp)
-    BaseHandlers(dp)
     PaymentHandlers(dp)
     AI_Handlers(dp)
     

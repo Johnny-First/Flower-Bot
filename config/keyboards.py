@@ -72,7 +72,7 @@ async def get_categories_keyboard():
     buttons.append([types.InlineKeyboardButton(text="Посмотреть корзину", callback_data="check_cart")])
     return types.InlineKeyboardMarkup(inline_keyboard=buttons)
 
-async def get_flowers_keyboard(category_id):
+async def get_flowers_keyboard(category_id, category_photo_id=None):
     flowers = await FlowerManager.get_flowers_by_category(category_id)
     buttons = []
     
@@ -111,7 +111,7 @@ async def get_flowers_keyboard(category_id):
                     row = []
             if row:
                 buttons.append(row)
-    buttons.append([types.InlineKeyboardButton(text="Посмотреть корзину", callback_data="check_cart")])
+    
     buttons.append([types.InlineKeyboardButton(text="Назад", callback_data="catalog")])
     return types.InlineKeyboardMarkup(inline_keyboard=buttons)
 

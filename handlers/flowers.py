@@ -8,12 +8,22 @@ class FlowerHandlers:
         dp.callback_query.register(self.send_categories, F.data.startswith("category_"))
 
     async def send_categories(self, callback: types.CallbackQuery):
-        flowers_keyboard = await get_flowers_keyboard(category_id=callback.data.split("_")[1])
+        category_id = callback.data.split("_")[1]
+        
+        # Получаем фотографию категории
+        from ..database.models import CategoryManager
+        category_photo_id = await CategoryManager.get_category_photo(int(category_id))
+        
+        flowers_keyboard = await get_flowers_keyboard(category_id=category_id, category_photo_id=category_photo_id)
+        
+        # Используем фотографию категории, если она есть, иначе дефолтную
+        photo_to_use = category_photo_id if category_photo_id else FLOWERS_PICTURES["default"]
        
         await callback.message.edit_media(
             media=types.InputMediaPhoto(
-                media=FLOWERS_PICTURES["default"], 
-                caption="Выберите цветок из категории:"),
+                media=photo_to_use, 
+                caption="Выберите цветок из категории:"
+            ),
             reply_markup=flowers_keyboard
         )
         await callback.answer()

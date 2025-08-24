@@ -1,9 +1,10 @@
 import aiosqlite
 
 DB_PATH = 'users.db'
-
+ 
 class DatabaseManager:
     """Основной класс для управления базой данных"""
+    
     @staticmethod
     async def create_all_tables():
         async with aiosqlite.connect(DB_PATH) as conn:
@@ -39,10 +40,11 @@ class DatabaseManager:
             ''')
             await conn.execute('''
                 CREATE TABLE IF NOT EXISTS categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL,
-                in_stock BOOLEAN NOT NULL DEFAULT 1
-            );
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    photo_id TEXT,
+                    in_stock BOOLEAN NOT NULL DEFAULT 1
+                )
             ''')
             await conn.execute('''
                 CREATE TABLE IF NOT EXISTS checkout (
@@ -60,6 +62,7 @@ class DatabaseManager:
                 )
             ''')
             await conn.commit()
+
 
 class UserManager:
     """Класс для управления пользователями"""
@@ -185,7 +188,7 @@ class UserManager:
                     (updated_cart_json, total_price, user_id)
                 )
                 await conn.commit()
-                
+
         except Exception as e:
             print(f"Ошибка при обновлении корзины: {e}")
             raise e
@@ -207,6 +210,7 @@ class UserManager:
             print(f"Ошибка при очистке корзины: {e}")
             return False
 
+
 class MessageManager:
     """Класс для управления сообщениями"""
     
@@ -219,7 +223,7 @@ class MessageManager:
                 (user_id, role, message)
             )
             await conn.commit()
-    
+
     @staticmethod
     async def get_history(user_id, limit=10):
         """Получение истории сообщений пользователя"""
@@ -231,24 +235,26 @@ class MessageManager:
                 rows = await cursor.fetchall()
         return [{"role": role, "content": content} for role, content in reversed(rows)]
 
+
 class CategoryManager:
     """Класс для управления категориями"""
     
     @staticmethod
-    async def add_category(name: str, in_stock: int = 1):
+    async def add_category(name: str, photo_id: str = None, in_stock: int = 1):
         """Добавление новой категории"""
         try:
             async with aiosqlite.connect(DB_PATH) as conn:
                 await conn.execute(
-                    '''INSERT INTO categories (name, in_stock) 
-                VALUES (?, ?) 
-                ON CONFLICT(name) 
-                DO UPDATE SET in_stock = excluded.in_stock;''',
-                (name, in_stock)
+                    '''INSERT INTO categories (name, photo_id, in_stock) 
+                    VALUES (?, ?, ?) 
+                    ON CONFLICT(name) 
+                        DO UPDATE SET photo_id = excluded.photo_id, in_stock = excluded.in_stock;''',
+                    (name, photo_id, in_stock)
                 )
                 await conn.commit()
         except Exception as e:
-            print(f"Ошибка в add_category: {e}")
+            print(f"Ошибка в add_category: {e}")  
+            raise e
     
     @staticmethod
     async def delete_category(category_id: int):
@@ -263,7 +269,7 @@ class CategoryManager:
                 (category_id,)
             )
             await conn.commit()
-    
+
     @staticmethod
     async def get_all_categories():
         """Получить все категории для админ-панели"""
@@ -279,6 +285,16 @@ class CategoryManager:
             async with conn.execute('SELECT name, id FROM categories WHERE in_stock = 1') as cursor:
                 categories = await cursor.fetchall()
         return categories
+
+    @staticmethod
+    async def get_category_photo(category_id: int):
+        """Получение фотографии категории"""
+        async with aiosqlite.connect(DB_PATH) as conn:
+            async with conn.execute('SELECT photo_id FROM categories WHERE id = ?', 
+                                    (category_id,)) as cursor:
+                result = await cursor.fetchone()
+        return result[0] if result else None
+
 
 class FlowerManager:
     """Класс для управления цветами"""
@@ -302,7 +318,7 @@ class FlowerManager:
                 (flower_id,)
             )
             await conn.commit()
-    
+         
     @staticmethod
     async def get_media_flower(flower_id):
         """Получение информации о цветке для медиа"""
@@ -311,7 +327,7 @@ class FlowerManager:
                                     (flower_id,)) as cursor:
                 flowers = await cursor.fetchone()
         return flowers
-    
+
     @staticmethod
     async def get_flower_category(flower_id):
         """Получение категории цветка"""
@@ -320,7 +336,7 @@ class FlowerManager:
                                     (flower_id,)) as cursor:
                 category = await cursor.fetchone()
         return category[0] if category else None
-    
+
     @staticmethod
     async def get_flower_stock(flower_id):
         """Получение статуса наличия цветка"""
@@ -336,7 +352,7 @@ class FlowerManager:
         async with aiosqlite.connect(DB_PATH) as conn:
             await conn.execute('UPDATE flowers SET in_stock = NOT in_stock WHERE id = ?', (flower_id,))
             await conn.commit()
-    
+
     @staticmethod
     async def get_flowers_by_category(category_id: int):
         """Получить все цветы в определенной категории"""
@@ -344,6 +360,7 @@ class FlowerManager:
             async with conn.execute('SELECT * FROM flowers WHERE category_id = ?', (category_id,)) as cursor:
                 flowers = await cursor.fetchall()
         return flowers
+
 
 class CheckoutManager:
     """Класс для управления заказами"""
@@ -387,6 +404,7 @@ class CheckoutManager:
             )
             await conn.commit()
 
+
 # Функции-алиасы для обратной совместимости
 async def create_all_tables():
     """Алиас для DatabaseManager.create_all_tables"""
@@ -416,9 +434,9 @@ async def get_history(user_id, limit=10):
     """Алиас для MessageManager.get_history"""
     return await MessageManager.get_history(user_id, limit)
 
-async def add_category(name: str, in_stock: int = 1):
+async def add_category(name: str, photo_id: str = None, in_stock: int = 1):
     """Алиас для CategoryManager.add_category"""
-    return await CategoryManager.add_category(name, in_stock)
+    return await CategoryManager.add_category(name, photo_id, in_stock)
 
 async def delete_category(category_id: int):
     """Алиас для CategoryManager.delete_category"""
@@ -431,6 +449,10 @@ async def get_all_categories():
 async def get_available_categories():
     """Алиас для CategoryManager.get_available_categories"""
     return await CategoryManager.get_available_categories()
+
+async def get_category_photo(category_id: int):
+    """Алиас для CategoryManager.get_category_photo"""
+    return await CategoryManager.get_category_photo(category_id)
 
 async def add_flower(name: str, price: str, caption: str, photo_id: str, category_id: int):
     """Алиас для FlowerManager.add_flower"""
@@ -474,6 +496,4 @@ async def get_all_orders():
 
 async def update_order_status(order_id: int, status: str):
     """Алиас для CheckoutManager.update_order_status"""
-    return await CheckoutManager.update_order_status(order_id, status)
-
-
+    return await CheckoutManager.update_order_status(order_id, status) 
