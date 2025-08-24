@@ -166,13 +166,11 @@ class PaymentHandlers:
             return
         
         try:
-            # Получаем все данные из state
             data = await state.get_data()
             cart_items = data['cart_items']
             total_price = data['total_price']
             phone = data['phone']
             
-            # Создаем заказ в БД
             from ..database.models import CheckoutManager
             await CheckoutManager.create_order(
                 user_id=message.from_user.id,
@@ -185,11 +183,10 @@ class PaymentHandlers:
                 total_price=total_price
             )
             
-            # Очищаем корзину
             from ..database.models import UserManager
             await UserManager.clear_cart(user_id=message.from_user.id)
             
-            # Отправляем уведомление админам
+            
             await self.notify_admins_about_order(message, cart_items, total_price, customer_name, phone)
             
             # Подтверждаем заказ пользователю
@@ -222,7 +219,6 @@ class PaymentHandlers:
             admin_ids = os.getenv("ADMIN_IDS", "")
             admin_ids = [int(x) for x in admin_ids.split(",") if x.strip()]
             
-            # Формируем сообщение о заказе
             order_text = f"🆕 НОВЫЙ ЗАКАЗ!\n\n"
             order_text += f"👤 Клиент: {customer_name}\n"
             order_text += f"📱 Телефон: {phone}\n"
@@ -233,8 +229,6 @@ class PaymentHandlers:
                 order_text += f"• {item['name']} × {item['quantity']} = {item['quantity'] * item['price']}₽\n"
             
 
-            
-            # Отправляем уведомление всем админам
             for admin_id in admin_ids:
                 try:
                     await message.bot.send_message(

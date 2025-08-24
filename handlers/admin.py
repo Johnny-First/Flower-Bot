@@ -68,7 +68,8 @@ class AdminHandlers:
         
         
 
-    async def admin_panel(self, message: types.Message):        
+    async def admin_panel(self, message: types.Message, state: FSMContext):
+        await state.clear()        
         if message.from_user.id not in self.admin_ids:
             await message.answer("У вас нет доступа к админ-панели.")
             return
@@ -77,7 +78,8 @@ class AdminHandlers:
             reply_markup=get_admin_keyboard()
         )
 
-    async def admin_panel_callback(self, callback: types.CallbackQuery):        
+    async def admin_panel_callback(self, callback: types.CallbackQuery, state: FSMContext):     
+        await state.clear()           
         if callback.from_user.id not in self.admin_ids:
             await callback.answer("У вас нет доступа к админ-панели", show_alert=True)
             return
@@ -95,8 +97,8 @@ class AdminHandlers:
             return
         
         if data == "mailing":
-            await callback.message.answer("Введите текст для рассылки:")
-            await state.set_state(AdminStates.waiting_broadcast)  
+            await callback.message.answer("Введите текст для рассылки:", reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[[types.InlineKeyboardButton(text="Назад", callback_data="admin_interact_catalog")]]))
+            await state.set_state(AdminStates.waiting_broadcast)
             await callback.answer()
             
         elif data == "interact_catalog":
@@ -189,12 +191,23 @@ class AdminHandlers:
             await callback.answer(f"Ошибка при обновлении заказа: {str(e)}", show_alert=True)
 
     async def stop_flower(self, callback: types.CallbackQuery, state: FSMContext):
-
-        await FlowerManager.stop_flower(int(callback.data))
-        await callback.message.edit_text("Успешно! Что-нибудь еще?", reply_markup=get_admin_keyboard())
-        await callback.answer()
-        await state.set_data({})
-        await state.clear()
+        try:
+            # Проверяем, что callback.data содержит числовой ID цветка
+            if not callback.data.isdigit():
+                await callback.answer("Неверный ID цветка", show_alert=True)
+                return
+                
+            flower_id = int(callback.data)
+            await FlowerManager.stop_flower(flower_id)
+            await callback.message.edit_text("Успешно! Что-нибудь еще?", reply_markup=get_admin_keyboard())
+            await callback.answer()
+            await state.set_data({})
+            await state.clear()
+            
+        except ValueError:
+            await callback.answer("Неверный ID цветка", show_alert=True)
+        except Exception as e:
+            await callback.answer(f"Ошибка при обновлении статуса: {str(e)}", show_alert=True)
 
 
     async def process_new_category(self, message: types.Message, state: FSMContext):

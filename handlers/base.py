@@ -13,9 +13,10 @@ class BaseHandlers:
         dp.callback_query.register(self.out_stock, F.data == "no_flowers")
         dp.callback_query.register(self.watch_others, F.data.startswith("back_"))
 
-    async def start_cmd(self, message: types.Message):
-        from ..database import add_user
-        await add_user(
+    async def start_cmd(self, message: types.Message, state: FSMContext):
+        await state.clear()
+        from ..database.models import UserManager
+        await UserManager.add_user(
             user_id=message.from_user.id,
             username=message.from_user.username,
             first_name=message.from_user.first_name,
@@ -31,8 +32,8 @@ class BaseHandlers:
         await callback.answer()
 
     async def watch_others(self, callback: types.CallbackQuery, state: FSMContext):
-        state.clear()
-        state.set_data({})
+        await state.clear()
+        await state.set_data({})
         await callback.answer()
         
         category_id = callback.data.split("_")[1]
