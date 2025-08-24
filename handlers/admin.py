@@ -7,7 +7,7 @@ from aiogram.filters import StateFilter
 import os
 from aiogram.fsm.context import FSMContext
 from dotenv import load_dotenv
-from ..database.models import add_flower, add_category, delete_category, delete_flower, get_all_categories, stop_flower
+from ..database.models import FlowerManager, CategoryManager
 from ..config import get_admin_keyboard
 
 class AdminStates(StatesGroup):
@@ -71,6 +71,7 @@ class AdminHandlers:
             "Что бы вы хотели сделать, админ?",
             reply_markup=get_admin_keyboard()
         )
+ 
 
     async def admin_action_callback(self, callback: types.CallbackQuery, state: FSMContext):
         await state.clear()
@@ -99,7 +100,7 @@ class AdminHandlers:
             await callback.answer()
             
         elif data == "category_add":
-            names = await get_all_categories()
+            names = await CategoryManager.get_all_categories()
             names = "\n".join([f"Наименование: {name}, статус: {"в наличии" if in_stock == 1 else "нет в наличии"}, id: {id}" for name, id, in_stock in names])
             await callback.message.edit_text(f"Введите имя новой категории, если её пока нет в наличии добавьте 0 через пробел, например: Розы 0, если их нет или Розы, если они есть\n\nДоступные категории:\n\n{names}", reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[[types.InlineKeyboardButton(text="Назад", callback_data="admin_interact_catalog")]]))
             await state.set_state(AdminStates.waiting_new_category_name)
@@ -128,6 +129,9 @@ class AdminHandlers:
             await state.set_state(AdminStates.waiting_flower_category)
             await state.update_data(action="stop")
             await callback.answer()
+        elif data == "orders":
+            await self.show_orders(callback)
+            await callback.answer()
         else:
             await callback.answer("Неизвестное действие", show_alert=True)
 
@@ -149,7 +153,7 @@ class AdminHandlers:
 
     async def stop_flower(self, callback: types.CallbackQuery, state: FSMContext):
 
-        await stop_flower(int(callback.data))
+        await FlowerManager.stop_flower(int(callback.data))
         await callback.message.edit_text("Успешно! Что-нибудь еще?", reply_markup=get_admin_keyboard())
         await callback.answer()
         await state.set_data({})
@@ -170,7 +174,7 @@ class AdminHandlers:
             stock_value = 1
         
         try:
-            await add_category(category_name, stock_value)
+            await CategoryManager.add_category(category_name, stock_value)
             status = "в наличии" if stock_value == 1 else "нет в наличии"
             await message.answer(
                 f"Категория '{category_name}' добавлена/изменена! Статус: {status}",
@@ -185,7 +189,7 @@ class AdminHandlers:
     async def remove_category(self, callback: types.CallbackQuery, state: FSMContext):
         cat_id = int(callback.data)
         try:
-            await delete_category(cat_id)
+            await CategoryManager.delete_category(cat_id)
             await callback.message.edit_text("Категория успешно удалена! Что-то еще?", reply_markup=get_admin_keyboard())    
         except Exception as e:
             await callback.answer(f"Ошибка: {e}", show_alert=True)
@@ -196,7 +200,7 @@ class AdminHandlers:
 
     async def delete_flower(self, callback: types.CallbackQuery, state: FSMContext):
         flower_id = callback.data
-        await delete_flower(flower_id=int(flower_id))
+        await FlowerManager.delete_flower(flower_id=int(flower_id))
         await callback.message.edit_text("Успешно! Что-то еще?", reply_markup=get_admin_keyboard())
         
         await callback.answer()
@@ -229,7 +233,7 @@ class AdminHandlers:
                 await message.answer("Ошибка: не найдена категория")
                 return
 
-            await add_flower(name, price, description, file_id, category_id)
+            await FlowerManager.add_flower(name, price, description, file_id, category_id)
             await message.answer(
             f"Цветок добавлен!\nНазвание: {name}\nЦена: {price}\nОписание: {description}",
             reply_markup=get_admin_keyboard()
@@ -252,7 +256,6 @@ class AdminHandlers:
         cursor.execute("SELECT user_id FROM users")
         user_ids = [row[0] for row in cursor.fetchall()]
         conn.close()
-        
         sent = 0
         for user_id in user_ids:
             try:
@@ -267,4 +270,81 @@ class AdminHandlers:
         )
         await state.clear()
 
+    async def show_orders(self, callback: types.CallbackQuery):
+        """Показать все заказы в админ-панели"""
+        try:
+            from ..database.models import CheckoutManager
+            import json
+            
+            # Получаем все заказы
+            orders = await CheckoutManager.get_all_orders()
+            
+            if not orders:
+                await callback.message.edit_text(
+                    "📋 Заказов пока нет",
+                    reply_markup=types.InlineKeyboardMarkup(
+                        inline_keyboard=[
+                            [types.InlineKeyboardButton(text="Назад", callback_data="admin")]
+                        ]
+                    )
+                )
+                return
+            
+            # Формируем таблицу заказов
+            orders_text = "📋 Список заказов:\n\n"
+            
+            for i, order in enumerate(orders, 1):
+                order_id, user_id, username, first_name, last_name, phone, customer_name, cart_items, total_price, order_date, status = order
+                
+                # Парсим товары из JSON
+                try:
+                    items = json.loads(cart_items)
+                    items_text = ""
+                    for item in items:
+                        items_text += f"  • {item['name']} × {item['quantity']} = {item['quantity'] * item['price']}₽\n"
+                except:
+                    items_text = "  • Ошибка чтения товаров\n"
+                
+                orders_text += f"🔸 Заказ #{order_id}\n"
+                orders_text += f"👤 Клиент: {customer_name}\n"
+                orders_text += f"📱 Телефон: {phone}\n"
+                orders_text += f"💰 Сумма: {total_price}₽\n"
+                orders_text += f"📅 Дата: {order_date}\n"
+                orders_text += f"📦 Статус: {status}\n"
+                orders_text += f"🛒 Товары:\n{items_text}\n"
+                orders_text += "─" * 40 + "\n\n"
+                
+                # Ограничиваем длину сообщения
+                if len(orders_text) > 3000:
+                    orders_text = orders_text[:3000] + "...\n\n(Показаны первые заказы)"
+                    break
+            
+            # Добавляем кнопки управления
+            keyboard = []
+            for order in orders[:5]:  # Показываем кнопки только для первых 5 заказов
+                order_id = order[0]
+                keyboard.append([
+                    types.InlineKeyboardButton(
+                        text=f"✅ Выполнен #{order_id}", 
+                        callback_data=f"complete_order_{order_id}"
+                    )
+                ])
+            
+            keyboard.append([types.InlineKeyboardButton(text="Назад", callback_data="admin")])
+            
+            await callback.message.edit_text(
+                orders_text,
+                reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard)
+            )
+            
+        except Exception as e:
+            await callback.message.edit_text(
+                f"Ошибка при загрузке заказов: {str(e)}",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [types.InlineKeyboardButton(text="Назад", callback_data="admin")]
+                    ]
+                )
+            )
+        
         

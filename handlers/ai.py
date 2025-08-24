@@ -2,7 +2,7 @@ from aiogram import Dispatcher, types, F
 from aiogram.filters import Command, StateFilter
 from ..services.ai import AI_GPT
 from ..config import get_base_keyboard
-from ..database.models import add_message, get_history
+from ..database.models import MessageManager
 from .admin import AdminStates
 
 class AI_Handlers:  
@@ -27,10 +27,10 @@ class AI_Handlers:
         thinking_msg = await message.answer("ChatGPT печатает...")
 
         try:
-            await add_message(user_id, "user", message.text)
-            history = await get_history(user_id, limit=10)
+            await MessageManager.add_message(user_id, "user", message.text)
+            history = await MessageManager.get_history(user_id, limit=10)
             response = self.gpt.ask_gpt(history)
-            await add_message(user_id, "assistant", response)
+            await MessageManager.add_message(user_id, "assistant", response)
 
             await thinking_msg.delete()
             await message.answer(response, reply_markup=get_base_keyboard())

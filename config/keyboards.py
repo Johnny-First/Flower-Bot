@@ -1,6 +1,6 @@
 from aiogram import types
 from typing import Dict
-from ..database.models import get_all_categories, get_available_categories, get_flowers_by_category
+from ..database.models import CategoryManager, FlowerManager
 
 def get_my_keyboard(role: str, data: Dict[str, str]) -> types.InlineKeyboardMarkup:
     buttons = []
@@ -28,19 +28,20 @@ def get_admin_keyboard():
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
             [types.InlineKeyboardButton(text="Рассылка", callback_data="admin_mailing"),
-             types.InlineKeyboardButton(text="Взаимодействие с каталогом", callback_data="admin_interact_catalog")]
+             types.InlineKeyboardButton(text="Взаимодействие с каталогом", callback_data="admin_interact_catalog")],
+            [types.InlineKeyboardButton(text="📋 Проверить готовых к заказу", callback_data="admin_orders")]
         ]
     )
 
 def get_pay_keyboard():
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
-            [types.InlineKeyboardButton(text="Я оплатил", callback_data="paid")],
-            [types.InlineKeyboardButton(text="Назад", callback_data="back")]
+            [types.InlineKeyboardButton(text="Проверить корзину", callback_data="check_cart")],
+            [types.InlineKeyboardButton(text="В каталог", callback_data="catalog")]
         ]
     )
 async def admin_get_categories_keyboard():
-    categories = await get_all_categories()
+    categories = await CategoryManager.get_all_categories()
     buttons = []
     row = []
     for category_id in categories:
@@ -54,7 +55,7 @@ async def admin_get_categories_keyboard():
     return types.InlineKeyboardMarkup(inline_keyboard=buttons)
 
 async def get_categories_keyboard():
-    categories = await get_available_categories()
+    categories = await CategoryManager.get_available_categories()
     buttons = []
     row = []
     if not categories:
@@ -67,10 +68,11 @@ async def get_categories_keyboard():
                 row = []
         if row:
             buttons.append(row)
+    buttons.append([types.InlineKeyboardButton(text="Посмотреть корзину", callback_data="check_cart")])
     return types.InlineKeyboardMarkup(inline_keyboard=buttons)
 
 async def get_flowers_keyboard(category_id):
-    flowers = await get_flowers_by_category(category_id)
+    flowers = await FlowerManager.get_flowers_by_category(category_id)
     buttons = []
     
     if not flowers:
@@ -108,12 +110,12 @@ async def get_flowers_keyboard(category_id):
                     row = []
             if row:
                 buttons.append(row)
-    
+    buttons.append([types.InlineKeyboardButton(text="Посмотреть корзину", callback_data="check_cart")])
     buttons.append([types.InlineKeyboardButton(text="Назад", callback_data="catalog")])
     return types.InlineKeyboardMarkup(inline_keyboard=buttons)
 
 async def admin_get_flowers_keyboard(category_id):
-    flowers = await get_flowers_by_category(category_id)
+    flowers = await FlowerManager.get_flowers_by_category(category_id)
     buttons = []
     
     if not flowers:
@@ -156,10 +158,10 @@ async def admin_get_flowers_keyboard(category_id):
     buttons.append([types.InlineKeyboardButton(text="Назад", callback_data="admin_interact_catalog")])
     return types.InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_order_keyboard(category_id, stock):
+def get_order_keyboard(category_id, flower_id, stock):
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
-            [types.InlineKeyboardButton(text="Заказываем!", callback_data="order")],
+            [types.InlineKeyboardButton(text="Добавить в корзину", callback_data=f"add_cart_{flower_id}")],
             [types.InlineKeyboardButton(text="Посмотрим другие", callback_data=f"back_{category_id}")]
         ]
     )

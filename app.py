@@ -1,7 +1,7 @@
 from aiogram import Bot, Dispatcher
 import asyncio
 from .config import settings
-from .database.models import create_all_tables
+from .database.models import DatabaseManager
 from .handlers import ( 
     FlowerHandlers,
     BaseHandlers,
@@ -14,7 +14,7 @@ async def main():
     bot = Bot(token=settings.BOT_TOKEN)
     dp = Dispatcher()
     
-    await create_all_tables()
+    await DatabaseManager.create_all_tables()
     
     AdminHandlers(dp)
     FlowerHandlers(dp)

@@ -31,7 +31,8 @@ class BaseHandlers:
         await callback.answer()
 
     async def watch_others(self, callback: types.CallbackQuery, state: FSMContext):
-        # Сначала отвечаем на callback, чтобы кнопка не горела
+        state.clear()
+        state.set_data({})
         await callback.answer()
         
         category_id = callback.data.split("_")[1]

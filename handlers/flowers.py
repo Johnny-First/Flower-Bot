@@ -1,6 +1,6 @@
 from aiogram import Dispatcher, types, F
 from ..config import FLOWERS_PICTURES, FLOWERS_CAPTIONS, get_order_keyboard, get_flowers_keyboard, get_categories_keyboard
-from ..database import get_media_flower, get_flower_category, get_flower_stock
+from ..database.models import FlowerManager
 
 class FlowerHandlers:
     def __init__(self, dp: Dispatcher):
@@ -20,13 +20,13 @@ class FlowerHandlers:
 
     async def send_flower(self, callback: types.CallbackQuery):
         flower_id = callback.data.split("_")[1]
-        media = await get_media_flower(flower_id=flower_id)
+        media = await FlowerManager.get_media_flower(flower_id=flower_id)
         try:
             await callback.message.edit_media(
                 media=types.InputMediaPhoto(
                 media=media[2], 
                 caption=media[1]),
-                reply_markup=get_order_keyboard(await get_flower_category(flower_id=flower_id), await get_flower_stock(flower_id=flower_id))
+                reply_markup=get_order_keyboard(await FlowerManager.get_flower_category(flower_id=flower_id), flower_id=flower_id, stock=await FlowerManager.get_flower_stock(flower_id=flower_id))
             )
             await callback.answer() 
         except Exception as e:
