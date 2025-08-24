@@ -2,6 +2,7 @@ from .settings import settings  # Основные настройки
 from .keyboards import ( 
     get_pay_keyboard,      # Клавиатуры
     get_base_keyboard,
+    admin_get_flowers_keyboard,
     get_flowers_keyboard,
     get_order_keyboard,
     get_admin_keyboard,

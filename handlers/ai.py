@@ -11,12 +11,12 @@ class AI_Handlers:
         dp.message.register(
             self.fallback_handler,
             F.text,
-            ~Command(commands=["admin", "start", "help", "catalog", "order"]),
-            ~StateFilter(AdminStates.waiting_category_name),
-            ~StateFilter(AdminStates.waiting_flower_name),
-            ~StateFilter(AdminStates.waiting_flower_caption),
-            ~StateFilter(AdminStates.waiting_flower_photo),
-            ~StateFilter(AdminStates.waiting_flower_category),
+            # ~Command(commands=["admin", "start", "help", "catalog", "order"]),
+            # ~StateFilter(AdminStates.waiting_category_name),
+            # ~StateFilter(AdminStates.waiting_flower_name),
+            # ~StateFilter(AdminStates.waiting_flower_caption),
+            # ~StateFilter(AdminStates.waiting_flower_photo),
+            # ~StateFilter(AdminStates.waiting_flower_category),
         )
 
     async def fallback_handler(self, message: types.Message):

@@ -13,11 +13,13 @@ from .handlers import (
 async def main():
     bot = Bot(token=settings.BOT_TOKEN)
     dp = Dispatcher()
+    
     await create_all_tables()
+    
+    AdminHandlers(dp)
     FlowerHandlers(dp)
     BaseHandlers(dp)
     PaymentHandlers(dp)
-    AdminHandlers(dp)
     AI_Handlers(dp)
     
     await dp.start_polling(bot)

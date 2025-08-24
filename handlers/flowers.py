@@ -1,6 +1,6 @@
 from aiogram import Dispatcher, types, F
 from ..config import FLOWERS_PICTURES, FLOWERS_CAPTIONS, get_order_keyboard, get_flowers_keyboard, get_categories_keyboard
-from ..database import get_media_flower, get_flower_category
+from ..database import get_media_flower, get_flower_category, get_flower_stock
 
 class FlowerHandlers:
     def __init__(self, dp: Dispatcher):
@@ -26,7 +26,7 @@ class FlowerHandlers:
                 media=types.InputMediaPhoto(
                 media=media[2], 
                 caption=media[1]),
-                reply_markup=get_order_keyboard(await get_flower_category(flower_id=flower_id))
+                reply_markup=get_order_keyboard(await get_flower_category(flower_id=flower_id), await get_flower_stock(flower_id=flower_id))
             )
             await callback.answer() 
         except Exception as e:
