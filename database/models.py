@@ -4,10 +4,8 @@ DB_PATH = 'users.db'
 
 class DatabaseManager:
     """Основной класс для управления базой данных"""
-    
     @staticmethod
     async def create_all_tables():
-        """Создание всех таблиц в базе данных"""
         async with aiosqlite.connect(DB_PATH) as conn:
             await conn.execute('''
                 CREATE TABLE IF NOT EXISTS users (
@@ -370,7 +368,7 @@ class CheckoutManager:
             ) as cursor:
                 orders = await cursor.fetchall()
         return orders
-    
+
     @staticmethod
     async def get_all_orders():
         """Получение всех заказов для админ-панели"""

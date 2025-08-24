@@ -26,6 +26,7 @@ class AdminHandlers:
         self.admin_ids = [int(x) for x in self.admin_ids.split(",") if x.strip()]
 
         dp.message.register(self.admin_panel, Command("admin"))        
+        dp.callback_query.register(self.admin_panel_callback, F.data == "admin")        
 
         dp.callback_query.register(
             self.admin_action_callback,
@@ -60,6 +61,10 @@ class AdminHandlers:
             self.flower_category,
             StateFilter(AdminStates.waiting_flower_category)
         )
+        dp.callback_query.register(
+            self.complete_order,
+            F.data.startswith("complete_order_")
+        )
         
         
 
@@ -68,6 +73,15 @@ class AdminHandlers:
             await message.answer("У вас нет доступа к админ-панели.")
             return
         await message.answer(
+            "Что бы вы хотели сделать, админ?",
+            reply_markup=get_admin_keyboard()
+        )
+
+    async def admin_panel_callback(self, callback: types.CallbackQuery):        
+        if callback.from_user.id not in self.admin_ids:
+            await callback.answer("У вас нет доступа к админ-панели", show_alert=True)
+            return
+        await callback.message.edit_text(
             "Что бы вы хотели сделать, админ?",
             reply_markup=get_admin_keyboard()
         )
@@ -90,11 +104,12 @@ class AdminHandlers:
             await callback.message.edit_text("Опции:", reply_markup=get_my_keyboard(
                 "admin", 
                 {
-                    "Добавить/изменить категорию": "category_add",
-                    "Удалить категорию": "category_remove",
-                    "Добавить товар": "flower_add",
-                    "Поставить на стоп/вывести из стопа товар": "flower_stop",
-                    "Удалить товар": "flower_remove"
+                    "Добавить/изменить категорию": "_category_add",
+                    "Удалить категорию": "_category_remove",
+                    "Добавить товар": "_flower_add",
+                    "Поставить на стоп/вывести из стопа товар": "_flower_stop",
+                    "Удалить товар": "_flower_remove",
+                    "Назад": ""
                 }
             ))
             await callback.answer()
@@ -132,6 +147,9 @@ class AdminHandlers:
         elif data == "orders":
             await self.show_orders(callback)
             await callback.answer()
+        elif data == "all_orders":
+            await self.show_all_orders(callback)
+            await callback.answer()
         else:
             await callback.answer("Неизвестное действие", show_alert=True)
 
@@ -150,6 +168,25 @@ class AdminHandlers:
             await callback.message.edit_text(text="Какой товар запускаем/стопим?", reply_markup=await admin_get_flowers_keyboard(category_id=category_id))
             await state.set_state(AdminStates.waiting_to_stop)
         await callback.answer()
+
+    async def complete_order(self, callback: types.CallbackQuery):
+        """Отметить заказ как выполненный"""
+        try:
+            from ..database.models import CheckoutManager
+            
+            # Извлекаем ID заказа из callback_data: "complete_order_123" -> 123
+            order_id = int(callback.data.split("_")[-1])
+            
+            # Обновляем статус заказа на "completed"
+            await CheckoutManager.update_order_status(order_id, "completed")
+            
+            await callback.answer("✅ Заказ отмечен как выполненный!", show_alert=True)
+            
+            # Обновляем список заказов (убираем выполненный)
+            await self.show_orders(callback)
+            
+        except Exception as e:
+            await callback.answer(f"Ошибка при обновлении заказа: {str(e)}", show_alert=True)
 
     async def stop_flower(self, callback: types.CallbackQuery, state: FSMContext):
 
@@ -271,17 +308,18 @@ class AdminHandlers:
         await state.clear()
 
     async def show_orders(self, callback: types.CallbackQuery):
-        """Показать все заказы в админ-панели"""
+        """Показать все незавершенные заказы в админ-панели"""
         try:
             from ..database.models import CheckoutManager
             import json
             
-            # Получаем все заказы
-            orders = await CheckoutManager.get_all_orders()
+            # Получаем только незавершенные заказы
+            all_orders = await CheckoutManager.get_all_orders()
+            orders = [order for order in all_orders if order[10] != 'completed']  # order[10] - это status
             
             if not orders:
                 await callback.message.edit_text(
-                    "📋 Заказов пока нет",
+                    "📋 Активных заказов нет",
                     reply_markup=types.InlineKeyboardMarkup(
                         inline_keyboard=[
                             [types.InlineKeyboardButton(text="Назад", callback_data="admin")]
@@ -291,7 +329,7 @@ class AdminHandlers:
                 return
             
             # Формируем таблицу заказов
-            orders_text = "📋 Список заказов:\n\n"
+            orders_text = "📋 Список активных заказов:\n\n"
             
             for i, order in enumerate(orders, 1):
                 order_id, user_id, username, first_name, last_name, phone, customer_name, cart_items, total_price, order_date, status = order
@@ -340,6 +378,100 @@ class AdminHandlers:
         except Exception as e:
             await callback.message.edit_text(
                 f"Ошибка при загрузке заказов: {str(e)}",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [types.InlineKeyboardButton(text="Назад", callback_data="admin")]
+                    ]
+                )
+            )
+
+    async def show_all_orders(self, callback: types.CallbackQuery):
+        """Показать все заказы (включая выполненные) в админ-панели"""
+        try:
+            from ..database.models import CheckoutManager
+            import json
+            
+            # Получаем все заказы
+            orders = await CheckoutManager.get_all_orders()
+            
+            if not orders:
+                await callback.message.edit_text(
+                    "📊 Заказов пока нет",
+                    reply_markup=types.InlineKeyboardMarkup(
+                        inline_keyboard=[
+                            [types.InlineKeyboardButton(text="Назад", callback_data="admin")]
+                        ]
+                    )
+                )
+                return
+            
+            # Формируем таблицу заказов
+            orders_text = "📊 Все заказы (включая выполненные):\n\n"
+            
+            completed_count = 0
+            pending_count = 0
+            
+            for i, order in enumerate(orders, 1):
+                order_id, user_id, username, first_name, last_name, phone, customer_name, cart_items, total_price, order_date, status = order
+                
+                # Подсчитываем статистику
+                if status == 'completed':
+                    completed_count += 1
+                else:
+                    pending_count += 1
+                
+                # Парсим товары из JSON
+                try:
+                    items = json.loads(cart_items)
+                    items_text = ""
+                    for item in items:
+                        items_text += f"  • {item['name']} × {item['quantity']} = {item['quantity'] * item['price']}₽\n"
+                except:
+                    items_text = "  • Ошибка чтения товаров\n"
+                
+                # Добавляем эмодзи в зависимости от статуса
+                status_emoji = "✅" if status == 'completed' else "⏳"
+                
+                orders_text += f"{status_emoji} Заказ #{order_id}\n"
+                orders_text += f"👤 Клиент: {customer_name}\n"
+                orders_text += f"📱 Телефон: {phone}\n"
+                orders_text += f"💰 Сумма: {total_price}₽\n"
+                orders_text += f"📅 Дата: {order_date}\n"
+                orders_text += f"📦 Статус: {status}\n"
+                orders_text += f"🛒 Товары:\n{items_text}\n"
+                orders_text += "─" * 40 + "\n\n"
+                
+                # Ограничиваем длину сообщения
+                if len(orders_text) > 3000:
+                    orders_text = orders_text[:3000] + "...\n\n(Показаны первые заказы)"
+                    break
+            
+            # Добавляем статистику в начало
+            stats_text = f"📊 Статистика:\n⏳ Активных: {pending_count} | ✅ Выполненных: {completed_count}\n\n"
+            orders_text = stats_text + orders_text
+            
+            # Добавляем кнопки управления только для активных заказов
+            keyboard = []
+            active_orders = [order for order in orders if order[10] != 'completed']
+            for order in active_orders[:5]:  # Показываем кнопки только для первых 5 активных заказов
+                order_id = order[0]
+                keyboard.append([
+                    types.InlineKeyboardButton(
+                        text=f"✅ Выполнен #{order_id}", 
+                        callback_data=f"complete_order_{order_id}"
+                    )
+                ])
+            
+            keyboard.append([types.InlineKeyboardButton(text="Назад", callback_data="admin")])
+            
+            await callback.message.edit_text(
+                orders_text,
+                reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard)
+            )
+            
+        except Exception as e:
+            await callback.message.edit_text(
+                f"Ошибка при загрузке всех заказов: {str(e)}",
                 reply_markup=types.InlineKeyboardMarkup(
                     inline_keyboard=[
                         [types.InlineKeyboardButton(text="Назад", callback_data="admin")]

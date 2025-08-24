@@ -8,3 +8,9 @@ class CartManager:
             'id': new_item['id'],
                 'quantity': new_item["quantity"]
         })
+
+    # @staticmethod
+    # async def check_cart(user_id: int):
+    #     all = await UserManager.get_cart(user_id=user_id)
+    #     items, price = all[0], all[1]
+    #     return items, price

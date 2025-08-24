@@ -8,7 +8,7 @@ def get_my_keyboard(role: str, data: Dict[str, str]) -> types.InlineKeyboardMark
     for name, callback in data.items():  
         row.append(types.InlineKeyboardButton(
             text=name, 
-            callback_data=f"{role}_{callback}"
+            callback_data=f"{role}{callback}"
         ))
         if len(row) == 2:  
             buttons.append(row)
@@ -29,7 +29,8 @@ def get_admin_keyboard():
         inline_keyboard=[
             [types.InlineKeyboardButton(text="Рассылка", callback_data="admin_mailing"),
              types.InlineKeyboardButton(text="Взаимодействие с каталогом", callback_data="admin_interact_catalog")],
-            [types.InlineKeyboardButton(text="📋 Проверить готовых к заказу", callback_data="admin_orders")]
+            [types.InlineKeyboardButton(text="📋 Проверить готовых к заказу", callback_data="admin_orders")],
+            [types.InlineKeyboardButton(text="📊 Все заказы (включая выполненные)", callback_data="admin_all_orders")]
         ]
     )
 

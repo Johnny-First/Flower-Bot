@@ -20,6 +20,7 @@ class PaymentHandlers:
         dp.callback_query.register(self.list_cart, F.data == "check_cart")
         dp.callback_query.register(self.clear_cart, F.data == "clear_cart")
         dp.callback_query.register(self.checkout_handler, F.data == "checkout")
+        dp.callback_query.register(self.cancel_checkout, F.data == "cancel_checkout")
         dp.message.register(
             self.quantity_input_handler,
             StateFilter(QuantityStates.waiting_state)
@@ -231,7 +232,7 @@ class PaymentHandlers:
             for item in cart_items:
                 order_text += f"• {item['name']} × {item['quantity']} = {item['quantity'] * item['price']}₽\n"
             
-            order_text += f"\n🔗 Быстрый переход: /admin_orders"
+
             
             # Отправляем уведомление всем админам
             for admin_id in admin_ids:
@@ -250,6 +251,22 @@ class PaymentHandlers:
                     
         except Exception as e:
             print(f"Ошибка при отправке уведомления админам: {e}")
+
+    async def cancel_checkout(self, callback: types.CallbackQuery, state: FSMContext):
+        """Отмена оформления заказа"""
+        await state.clear()
+        await callback.message.edit_media(
+            media=types.InputMediaPhoto(
+                media=callback.message.photo[-1].file_id if callback.message.photo else "AgACAgIAAxkBAAMQaHGe30jHWjEc3XIWhpNWHIgLWroAAsn-MRsbo5BLMRbcsf9Zu8MBAAMCAAN4AAM2BA",
+                caption="❌ Оформление заказа отменено"
+            ),
+            reply_markup=types.InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [types.InlineKeyboardButton(text="В каталог", callback_data="catalog")]
+                ]
+            )
+        )
+        await callback.answer("Оформление заказа отменено")
 
     async def payment_handler(self, callback: types.CallbackQuery, state: FSMContext):
         """Обработчик добавления в корзину"""
