@@ -1,9 +1,10 @@
 from aiogram import F, types, Dispatcher
-from aiogram.filters import Command  
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from ..config import get_base_keyboard, get_categories_keyboard, get_flowers_keyboard
 from ..config.media import FLOWERS_PICTURES
 import aiosqlite
+from ..config import settings
 
 class BaseHandlers:
     def __init__(self, dp: Dispatcher):
@@ -12,6 +13,7 @@ class BaseHandlers:
         dp.callback_query.register(self.out_stock, F.data == "out_of_stock_header")
         dp.callback_query.register(self.out_stock, F.data == "no_flowers")
         dp.callback_query.register(self.watch_others, F.data.startswith("back_"))
+        dp.callback_query.register(self.channel_info, F.data == "channel")
 
     async def start_cmd(self, message: types.Message, state: FSMContext):
         await state.clear()
@@ -69,4 +71,19 @@ class BaseHandlers:
                 )
             ),
             reply_markup=categories_keyboard
+        )
+
+    async def channel_info(self, callback: types.CallbackQuery):
+        await callback.answer()
+        caption = (
+            f"Переходите в наш канал!\n"
+            f"Мы регулярно публикуем фотографии наших цветов и рассказываем о них)\n"
+            f"{settings.CHANNEL_URL or ''}"
+        )
+        back_keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[[types.InlineKeyboardButton(text="В каталог", callback_data="catalog")]]
+        )
+        await callback.message.edit_caption(
+            caption=caption,
+            reply_markup=back_keyboard
         )

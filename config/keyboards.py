@@ -20,7 +20,8 @@ def get_my_keyboard(role: str, data: Dict[str, str]) -> types.InlineKeyboardMark
 def get_base_keyboard():
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
-            [types.InlineKeyboardButton(text="Заказать цветы", callback_data="catalog")]
+            [types.InlineKeyboardButton(text="Заказать цветы", callback_data="catalog")],
+            
         ]
     )
 
@@ -70,6 +71,7 @@ async def get_categories_keyboard():
         if row:
             buttons.append(row)
     buttons.append([types.InlineKeyboardButton(text="Посмотреть корзину", callback_data="check_cart")])
+    buttons.append([types.InlineKeyboardButton(text="Наш канал", callback_data="channel")])
     return types.InlineKeyboardMarkup(inline_keyboard=buttons)
 
 async def get_flowers_keyboard(category_id, category_photo_id=None):

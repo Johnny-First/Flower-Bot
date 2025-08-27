@@ -7,6 +7,7 @@ class Settings:
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     DEEP_KEY = os.getenv("DEEP_KEY")
     PAYMENT_TOKEN = os.getenv("PAYMENT_TOKEN")
+    CHANNEL_URL = os.getenv("CHANNEL_URL")
 
 settings = Settings() 
         
