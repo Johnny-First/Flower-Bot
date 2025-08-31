@@ -215,9 +215,31 @@ class MessageManager:
     """Класс для управления сообщениями"""
     
     @staticmethod
-    async def add_message(user_id: int, role: str, message: str):
-        """Добавление нового сообщения"""
+    async def get_message_count(user_id: int):
+        """Получение количества сообщений пользователя"""
         async with aiosqlite.connect(DB_PATH) as conn:
+            async with conn.execute(
+                'SELECT COUNT(*) FROM messages WHERE user_id = ?',
+                (user_id,)
+            ) as cursor:
+                result = await cursor.fetchone()
+        return result[0] if result else 0
+    
+    @staticmethod
+    async def add_message(user_id: int, role: str, message: str):
+        """Добавление нового сообщения с ограничением на 5 сообщений"""
+        async with aiosqlite.connect(DB_PATH) as conn:
+            # Проверяем количество сообщений пользователя
+            message_count = await MessageManager.get_message_count(user_id)
+            
+            if message_count >= 5:
+                # Если сообщений уже 5, удаляем самое старое
+                await conn.execute(
+                    'DELETE FROM messages WHERE user_id = ? AND id = (SELECT MIN(id) FROM messages WHERE user_id = ?)',
+                    (user_id, user_id)
+                )
+            
+            # Добавляем новое сообщение
             await conn.execute(
                 'INSERT INTO messages (user_id, role, content) VALUES (?, ?, ?)',
                 (user_id, role, message)
@@ -433,6 +455,10 @@ async def add_message(user_id: int, role: str, message: str):
 async def get_history(user_id, limit=10):
     """Алиас для MessageManager.get_history"""
     return await MessageManager.get_history(user_id, limit)
+
+async def get_message_count(user_id: int):
+    """Алиас для MessageManager.get_message_count"""
+    return await MessageManager.get_message_count(user_id)
 
 async def add_category(name: str, photo_id: str = None, in_stock: int = 1):
     """Алиас для CategoryManager.add_category"""

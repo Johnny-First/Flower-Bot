@@ -1,7 +1,8 @@
 from openai import OpenAI
 import os
 import dotenv
-from typing import List, Dict
+from typing import List, Dict, AsyncGenerator
+import asyncio
 
 dotenv.load_dotenv()
 
@@ -17,19 +18,41 @@ class AI_GPT:
             "Если вопрос не о цветах, скажи: 'Простите, с таким вопросом я не могу помочь!'"
         )
 
-    def ask_gpt(self, messages: List[Dict]) -> str:
+    async def ask_gpt_stream(self, messages: List[Dict]) -> AsyncGenerator[str, None]:
         """
-        messages: список сообщений вида [{"role": ..., "content": ...}, ...]
-        Возвращает ответ модели с учётом истории диалога.
+        Потоковый запрос к GPT
         """
-        # Добавляем system_prompt в начало истории
         full_messages = [{"role": "system", "content": self.system_prompt}] + messages
+        
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4.1",
+            stream = self.client.chat.completions.create(
+                model="gpt-4.1-nano",
                 messages=full_messages,
                 temperature=0.7,
-                max_tokens=300
+                stream=True,
+                max_tokens=500
+            )
+            
+            for chunk in stream:
+                content = chunk.choices[0].delta.content
+                if content:
+                    yield content
+                    
+        except Exception as e:
+            yield f"❌ Ошибка: {str(e)}"
+
+    async def ask_gpt(self, messages: List[Dict]) -> str:
+        """
+        Обычный (не потоковый) запрос к GPT
+        """
+        full_messages = [{"role": "system", "content": self.system_prompt}] + messages
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-5-nano",
+                messages=full_messages,
+                temperature=0.7,
+                stream=False  # Важно: stream=False для обычного ответа
             )
             bot_reply = response.choices[0].message.content
             return bot_reply
