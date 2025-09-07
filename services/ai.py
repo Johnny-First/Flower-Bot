@@ -1,11 +1,11 @@
-from openai import OpenAI
+from openai import AsyncOpenAI
 from typing import List, Dict, AsyncGenerator
 import asyncio
 from ..config.settings import settings
 
 class AI_GPT:
     def __init__(self):
-        self.client = OpenAI(
+        self.client = AsyncOpenAI(
             api_key=settings.API_KEY,
             base_url='https://bothub.chat/api/v2/openai/v1'
         )
@@ -22,7 +22,7 @@ class AI_GPT:
         full_messages = [{"role": "system", "content": self.system_prompt}] + messages
         
         try:
-            stream = self.client.chat.completions.create(
+            stream = await self.client.chat.completions.create(
                 model="gpt-4.1-nano",
                 messages=full_messages,
                 temperature=0.7,
@@ -30,7 +30,7 @@ class AI_GPT:
                 max_tokens=500
             )
             
-            for chunk in stream:
+            async for chunk in stream:
                 content = chunk.choices[0].delta.content
                 if content:
                     yield content
@@ -45,11 +45,12 @@ class AI_GPT:
         full_messages = [{"role": "system", "content": self.system_prompt}] + messages
         
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-5-nano",
+            response = await self.client.chat.completions.create(
+                model="gpt-4.1-nano",
                 messages=full_messages,
                 temperature=0.7,
-                stream=False  # Важно: stream=False для обычного ответа
+                stream=False,  # Важно: stream=False для обычного ответа
+                max_tokens=500
             )
             bot_reply = response.choices[0].message.content
             return bot_reply
