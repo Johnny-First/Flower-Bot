@@ -4,11 +4,10 @@ from aiogram.filters import Command
 from ..config import get_base_keyboard, admin_get_flowers_keyboard, get_my_keyboard, admin_get_categories_keyboard
 import sqlite3
 from aiogram.filters import StateFilter
-import os
 from aiogram.fsm.context import FSMContext
-from dotenv import load_dotenv
 from ..database.models import FlowerManager, CategoryManager
 from ..config import get_admin_keyboard
+from ..config.settings import settings
 
 class AdminStates(StatesGroup):
     waiting_broadcast = State() 
@@ -25,9 +24,7 @@ class AdminStates(StatesGroup):
 
 class AdminHandlers:
     def __init__(self, dp: Dispatcher):
-        load_dotenv()
-        self.admin_ids = os.getenv("ADMIN_IDS", "")
-        self.admin_ids = [int(x) for x in self.admin_ids.split(",") if x.strip()]
+        self.admin_ids = [int(x) for x in settings.ADMIN_IDS.split(",") if x.strip()]
 
         dp.message.register(self.admin_panel, Command("admin"))
         dp.callback_query.register(self.admin_panel_callback, F.data == "admin")        

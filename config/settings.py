@@ -8,6 +8,8 @@ class Settings:
     DEEP_KEY = os.getenv("DEEP_KEY")
     PAYMENT_TOKEN = os.getenv("PAYMENT_TOKEN")
     CHANNEL_URL = os.getenv("CHANNEL_URL")
+    API_KEY = os.getenv("API_KEY")
+    ADMIN_IDS = os.getenv("ADMIN_IDS", "")
 
 settings = Settings() 
         

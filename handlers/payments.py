@@ -212,12 +212,9 @@ class PaymentHandlers:
     async def notify_admins_about_order(self, message: types.Message, cart_items: list, total_price: float, customer_name: str, phone: str):
         """Уведомление админов о новом заказе"""
         try:
-            import os
-            from dotenv import load_dotenv
-            load_dotenv()
+            from ..config.settings import settings
             
-            admin_ids = os.getenv("ADMIN_IDS", "")
-            admin_ids = [int(x) for x in admin_ids.split(",") if x.strip()]
+            admin_ids = [int(x) for x in settings.ADMIN_IDS.split(",") if x.strip()]
             
             order_text = f"🆕 НОВЫЙ ЗАКАЗ!\n\n"
             order_text += f"👤 Клиент: {customer_name}\n"

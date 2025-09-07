@@ -1,15 +1,12 @@
 from openai import OpenAI
-import os
-import dotenv
 from typing import List, Dict, AsyncGenerator
 import asyncio
-
-dotenv.load_dotenv()
+from ..config.settings import settings
 
 class AI_GPT:
     def __init__(self):
         self.client = OpenAI(
-            api_key=os.getenv("API_KEY"),
+            api_key=settings.API_KEY,
             base_url='https://bothub.chat/api/v2/openai/v1'
         )
         self.system_prompt = (
@@ -39,7 +36,7 @@ class AI_GPT:
                     yield content
                     
         except Exception as e:
-            yield f"❌ Ошибка: {str(e)}"
+            yield f""
 
     async def ask_gpt(self, messages: List[Dict]) -> str:
         """
@@ -57,4 +54,4 @@ class AI_GPT:
             bot_reply = response.choices[0].message.content
             return bot_reply
         except Exception as e:
-            return f"❌ Ошибка: {str(e)}"
+            return f""
