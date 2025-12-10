@@ -1,7 +1,7 @@
 from aiogram.fsm.state import StatesGroup, State
 from aiogram import F, types, Dispatcher
 from aiogram.filters import Command  
-from ..config import get_base_keyboard, admin_get_flowers_keyboard, get_my_keyboard, admin_get_categories_keyboard
+from ..config import get_base_keyboard, admin_get_flowers_keyboard, get_my_keyboard, admin_get_categories_keyboard, get_pay_keyboard
 import sqlite3
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
@@ -472,7 +472,8 @@ class AdminHandlers:
                         await message.bot.send_photo(
                             chat_id=user_id,
                             photo=photo_file_id,
-                            caption=caption
+                            caption=caption,
+                            reply_markup=get_pay_keyboard()
                         )
                         sent += 1
                     except Exception as e:
@@ -492,7 +493,8 @@ class AdminHandlers:
                     try:
                         await message.bot.send_message(
                             chat_id=user_id,
-                            text=broadcast_text
+                            text=broadcast_text,
+                            reply_markup=get_pay_keyboard()
                         )
                         sent += 1
                     except Exception as e:
